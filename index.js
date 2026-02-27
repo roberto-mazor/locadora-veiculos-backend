@@ -11,6 +11,7 @@ app.get('/', function (req, res) {
 })
 
 const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
 const { Pool } = require('pg');
 
@@ -117,6 +118,25 @@ function verificarAutenticacao(req, res, next) {
 // Aplicando na gestão de frota (US5)
 app.get("/admin/frota", verificarAutenticacao, (req, res) => {
     // Só chega aqui se estiver logado
+});
+
+
+// Rota para cadastrar novo usuário (CRUD de usuários - US5)
+app.post("/usuarios", async (req, res) => {
+    const { login, senha, nivel_acesso } = req.body;
+
+    try {
+        // Criptografando a senha antes de salvar (US6) [cite: 701, 703]
+        const hash = await bcrypt.hash(senha, saltRounds);
+        
+        const sql = 'INSERT INTO usuarios (login, senha, nivel_acesso) VALUES ($1, $2, $3) RETURNING id';
+        const result = await pool.query(sql, [login, hash, nivel_acesso || 'Operador']);
+        
+        res.status(201).json({ id: result.rows[0].id, mensagem: "Usuário criado com sucesso!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ erro: "Erro ao criar usuário ou login já existente." });
+    }
 });
 
 app.listen(3000)
