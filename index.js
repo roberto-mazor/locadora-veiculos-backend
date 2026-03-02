@@ -31,6 +31,46 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
+function verificarAutenticacao(req, res, next) {
+    const usuarioAutenticado = req.headers['authorization']; 
+    if (!usuarioAutenticado) {
+        return res.status(403).json({ erro: "Acesso negado. Faça login." }); //
+    }
+    next();
+}
+
+// Rota para cadastrar novo usuário (CRUD de usuários - US5)
+app.post("/usuarios", async (req, res) => {
+    const { login, senha, nivel_acesso } = req.body;
+
+    try {
+        // Criptografando a senha antes de salvar (US6) [cite: 701, 703]
+        const hash = await bcrypt.hash(senha, saltRounds);
+        
+        const sql = 'INSERT INTO usuarios (login, senha, nivel_acesso) VALUES ($1, $2, $3) RETURNING id';
+        const result = await pool.query(sql, [login, hash, nivel_acesso || 'Operador']);
+        
+        res.status(201).json({ id: result.rows[0].id, mensagem: "Usuário criado com sucesso!" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ erro: "Erro ao criar usuário ou login já existente." });
+    }
+});
+
+app.get("/usuarios_lista", (req, res) => {
+    pool.query("SELECT id, login, nivel_acesso FROM usuarios ORDER BY id ASC", (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json(result.rows);
+    });
+});
+
+app.get("/agendamentos", verificarAutenticacao, (req, res) => {
+    pool.query("SELECT * FROM agendamentos ORDER BY id DESC", (erro, resultado) => {
+        if (erro) return res.status(500).json(erro);
+        res.json(resultado.rows);
+    });
+});
+
 app.post("/reservar", function (req, res) {
     // Pegamos os dados do corpo da requisição
     const { nome, email, categoria } = req.body;
@@ -93,7 +133,8 @@ app.post("/login", async (req, res) => {
             
             if (senhaValida) {
                 // Sucesso: Aqui você deve iniciar uma sessão ou gerar um Token [cite: 704]
-                res.status(200).json({ mensagem: "Login realizado!" });
+                res.status(200).json({ mensagem: "Login realizado!", token: "autenticado", nivel: user.nivel_acesso // Enviar 'Admin' ou 'Operador'
+                });
             } else {
                 res.status(401).json({ erro: "Usuário ou senha incorretos." }); // T2.2 
             }
@@ -105,38 +146,9 @@ app.post("/login", async (req, res) => {
     }
 });
 
-function verificarAutenticacao(req, res, next) {
-    // Lógica básica: verificar se há um sinal de login (ex: cookie ou header) [cite: 704]
-    const usuarioAutenticado = req.headers['authorization']; 
-    
-    if (!usuarioAutenticado) {
-        return res.status(403).json({ erro: "Acesso negado. Faça login." }); // Redirecionamento lógico 
-    }
-    next();
-}
-
 // Aplicando na gestão de frota (US5)
 app.get("/admin/frota", verificarAutenticacao, (req, res) => {
     // Só chega aqui se estiver logado
-});
-
-
-// Rota para cadastrar novo usuário (CRUD de usuários - US5)
-app.post("/usuarios", async (req, res) => {
-    const { login, senha, nivel_acesso } = req.body;
-
-    try {
-        // Criptografando a senha antes de salvar (US6) [cite: 701, 703]
-        const hash = await bcrypt.hash(senha, saltRounds);
-        
-        const sql = 'INSERT INTO usuarios (login, senha, nivel_acesso) VALUES ($1, $2, $3) RETURNING id';
-        const result = await pool.query(sql, [login, hash, nivel_acesso || 'Operador']);
-        
-        res.status(201).json({ id: result.rows[0].id, mensagem: "Usuário criado com sucesso!" });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ erro: "Erro ao criar usuário ou login já existente." });
-    }
 });
 
 app.listen(3000)
