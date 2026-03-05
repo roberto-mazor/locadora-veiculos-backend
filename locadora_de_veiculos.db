@@ -1,0 +1,53 @@
+-- 1. Criação da tabela de Veículos
+CREATE TABLE IF NOT EXISTS veiculos (
+    id SERIAL PRIMARY KEY,
+    modelo VARCHAR(100) NOT NULL,
+    marca VARCHAR(50) NOT NULL,
+    placa VARCHAR(10) NOT NULL UNIQUE,
+    categoria VARCHAR(50) NOT NULL,
+    valor_diaria DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'Disponível'
+);
+
+-- 2. Criação da tabela de Usuários (Nível 2 - US5 e US6)
+CREATE TABLE IF NOT EXISTS usuarios (
+    id SERIAL PRIMARY KEY,
+    login VARCHAR(150) NOT NULL UNIQUE,
+    senha VARCHAR(255) NOT NULL, -- Armazena Hash Bcrypt
+    nivel_acesso VARCHAR(20) DEFAULT 'Operador'
+);
+
+-- 3. Criação da tabela de Agendamentos (Com Chave Estrangeira)
+CREATE TABLE IF NOT EXISTS agendamentos (
+    id SERIAL PRIMARY KEY,
+    nome_cliente VARCHAR(150) NOT NULL,
+    email_cliente VARCHAR(150) NOT NULL,
+    categoria_interesse VARCHAR(50),
+    veiculo_id INTEGER REFERENCES veiculos(id) ON DELETE SET NULL,
+    data_reserva TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    quantidade_diarias INTEGER DEFAULT 1,
+    valor_total DECIMAL(10, 2) DEFAULT 0.00
+);
+
+---
+--- INSERTS DE DADOS INICIAIS
+---
+
+-- Povoando Veículos (Base para US2 e Nível 3)
+INSERT INTO veiculos (modelo, marca, placa, categoria, valor_diaria) VALUES
+('Mobi', 'Fiat', 'ABC-1234', 'Econômico', 99.00),
+('HB20', 'Hyundai', 'DEF-5678', 'Intermediário', 150.00),
+('Corolla', 'Toyota', 'GHI-9012', 'Premium', 250.00),
+('Compass', 'Jeep', 'JKL-3456', 'SUV', 300.00)
+ON CONFLICT (placa) DO NOTHING;
+
+-- Usuários iniciais (Senha '123' em Hash)
+INSERT INTO usuarios (login, senha, nivel_acesso) VALUES
+('roberto@admin.com', '$2b$10$76Yv9pD7XhVlS.qU8vN19uO8zG9W4L5kRj6f5E8l7mH9X2z1a3b4c', 'Admin'),
+('vendedor@locadora.com', '$2b$10$76Yv9pD7XhVlS.qU8vN19uO8zG9W4L5kRj6f5E8l7mH9X2z1a3b4c', 'Operador')
+ON CONFLICT (login) DO NOTHING;
+
+-- Agendamentos de Teste (US3)
+INSERT INTO agendamentos (nome_cliente, email_cliente, categoria_interesse, veiculo_id, valor_total) VALUES
+('João Silva', 'joao@email.com', 'Econômico', 1, 99.00),
+('Maria Souza', 'maria@email.com', 'Premium', 3, 250.00);
